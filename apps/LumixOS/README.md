@@ -3,7 +3,12 @@
 Native macOS live view and control for a LUMIX camera on USB (PC (Tether) mode). See the main README for features.
 
 Build: `./build_app.sh` → `LumixOS.app` (ad-hoc signed). Copy it to /Applications. It starts the camera service from
-the repo's `.venv` (`LUMIX_REPO` overrides); log: `~/Library/Logs/LumixOS/server.log`.
+the `.venv` of the repo it was built in (override: `LUMIX_REPO`, or `defaults write local.lumixos.app LumixRepo <path>`);
+log: `~/Library/Logs/LumixOS/server.log`.
+
+Port: 127.0.0.1:8765 by default. Anki's AnkiConnect add-on uses the same port; pick another with
+`defaults write local.lumixos.app LumixPort -int 8767` (or `LUMIX_PORT`), then reopen the app. The OBS Media Source URL
+and Camera → Copy Stream URL follow the setting; the LumixCamera extension still expects 8765.
 
 ## Virtual camera without signing: OBS Virtual Camera
 

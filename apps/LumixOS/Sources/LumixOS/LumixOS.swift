@@ -1,12 +1,19 @@
 // LumixOS: native macOS live view + settings for a LUMIX camera on USB.
-// Talks to `python -m lumix.server` on 127.0.0.1:8765 (started automatically from the repo's .venv,
+// Talks to `python -m lumix.server` on 127.0.0.1:<lumixPort> (started automatically from the repo's .venv,
 // log in ~/Library/Logs/LumixOS/server.log). The live picture carries a camera-style HUD: hover a value to
 // open its options, click to set it.
 import AppKit
 import ImageIO
 import SwiftUI
 
-let serverURL = URL(string: "http://127.0.0.1:8765")!
+/// Service port: LUMIX_PORT, else `defaults write local.lumixos.app LumixPort -int N`, else 8765.
+/// 8765 is also AnkiConnect's port, so pick another one when Anki runs.
+let lumixPort: Int = {
+    if let s = ProcessInfo.processInfo.environment["LUMIX_PORT"], let p = Int(s), p > 0 { return p }
+    let p = UserDefaults.standard.integer(forKey: "LumixPort")
+    return p > 0 ? p : 8765
+}()
+let serverURL = URL(string: "http://127.0.0.1:\(lumixPort)")!
 
 // MARK: - Backend process (start, log, restart, stop cleanly)
 
@@ -19,7 +26,14 @@ final class Backend: ObservableObject {
     private var restarts: [Date] = []
 
     var repo: URL {
+        // LUMIX_REPO, else `defaults write local.lumixos.app LumixRepo <path>`, else the repo build_app.sh ran in
         if let r = ProcessInfo.processInfo.environment["LUMIX_REPO"] { return URL(fileURLWithPath: r) }
+        if let r = UserDefaults.standard.string(forKey: "LumixRepo") {
+            return URL(fileURLWithPath: (r as NSString).expandingTildeInPath)
+        }
+        if let r = Bundle.main.object(forInfoDictionaryKey: "LumixRepo") as? String, !r.isEmpty {
+            return URL(fileURLWithPath: r)
+        }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Projects/lumix-lut-tools")
     }
 
@@ -44,8 +58,9 @@ final class Backend: ObservableObject {
     static func serverAnswers() async -> Bool {
         var req = URLRequest(url: serverURL.appendingPathComponent("state"))
         req.timeoutInterval = 1
-        guard let (_, r) = try? await URLSession.shared.data(for: req) else { return false }
-        return (r as? HTTPURLResponse)?.statusCode == 200
+        guard let (d, r) = try? await URLSession.shared.data(for: req) else { return false }
+        // another program on the port (AnkiConnect answers any GET with 200 and plain text) is not the camera service
+        return (r as? HTTPURLResponse)?.statusCode == 200 && (try? JSONSerialization.jsonObject(with: d)) is [String: Any]
     }
 
     private func launch() {
@@ -61,7 +76,7 @@ final class Backend: ObservableObject {
         _ = try? log?.seekToEnd()
         let p = Process()
         p.executableURL = python
-        p.arguments = ["-u", "-m", "lumix.server", "--size", "1280x960"]
+        p.arguments = ["-u", "-m", "lumix.server", "--size", "1280x960", "--port", String(lumixPort)]
         p.currentDirectoryURL = repo
         p.standardOutput = log ?? FileHandle.nullDevice
         p.standardError = log ?? FileHandle.nullDevice
@@ -84,7 +99,8 @@ final class Backend: ObservableObject {
         if code == 2 {  // port taken: use the other lumix-server if it answers
             Task {
                 problem = await Backend.serverAnswers() ? nil
-                    : "Port 8765 is used by another program. Quit it, then press Retry."
+                    : "Port \(lumixPort) is used by another program (Anki's AnkiConnect uses 8765). Quit it, or pick "
+                      + "another port: defaults write local.lumixos.app LumixPort -int 8767, reopen LumixOS."
             }
             return
         }
@@ -1320,7 +1336,7 @@ struct LumixOSApp: App {
                     Divider()
                     Button("Copy Stream URL (OBS Media Source)") {
                         NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString("http://127.0.0.1:8765/stream", forType: .string)
+                        NSPasteboard.general.setString("http://127.0.0.1:\(lumixPort)/stream", forType: .string)
                     }
                     Button("Open Service Log") { Backend.shared.openLog() }
                 }

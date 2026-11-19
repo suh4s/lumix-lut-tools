@@ -10,6 +10,7 @@
 set -e
 cd ${0:a:h}
 BUNDLE_ID=${BUNDLE_ID:-local.lumixos.app}
+REPO=${PWD:h:h}   # baked into Info.plist so the app finds this repo's .venv without LUMIX_REPO
 EXT_ID=$BUNDLE_ID.camera
 swift build -c release
 APP=LumixOS.app
@@ -27,6 +28,7 @@ cat > $APP/Contents/Info.plist <<PLIST
 <key>CFBundleVersion</key><string>2</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>LumixRepo</key><string>$REPO</string>
 <key>NSCameraUsageDescription</key><string>LumixOS sends the LUMIX live view into OBS's virtual camera.</string>
 </dict></plist>
 PLIST

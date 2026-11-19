@@ -40,7 +40,7 @@ Raw result: `docs/scans/mps_probe_fw2.1.json`. Findings are also in `docs/FINDIN
 - `settings.PHOTO_STYLES` now names 19–28 `my_photo_style_1` … `my_photo_style_10` (it previously called 20–22
   custom1–3). The phone page lists the selectable ones automatically.
 
-## Write test plan for Looks (not run yet)
+## Write test for Looks (`control/mps_write_test.py`; run 1 inconclusive)
 
 Safety rules from `docs/SAFETY.md` apply: only settings the camera menu also offers, old values recorded first and
 restored after.
@@ -49,7 +49,14 @@ restored after.
 2. On slot 10 (unused, hidden): StartEdit (0x9419 0x03010041), select slot 10 (`0x02000223` = 28), set base style
    V-Log (`0x020001F7`), register LUT 1 = Vibrant Pop (`0x020001FB` = 40), LUT 1 on (`0x020001F3`), strength 100
    (`0x020001F9`), EndEdit (0x03010042).
-3. Show slot 10 in the menu (`0x02000221`), then set Photo Style = 28 (`0x02000011`).
+3. Show slot 10 in the menu (`0x02000221`) **before** editing it (a hidden slot can't be selected for editing), then
+   set Photo Style = 28 (`0x02000011`).
 4. Pass: live view takes on Vibrant Pop's look (compare to Real Time LUT on slot 40). Fail: values accepted but no
    change, as the earlier attempt recorded in FINDINGS.md.
 5. Restore: Photo Style back to 49, slot 10 hidden, slot 10 reset (0x03010044) or its recorded values written back.
+
+Run 1 (2026-11-18): the slot writes were accepted once the slot was shown, but live view was flat (lens cap on), so
+the look comparison measured nothing. The camera refused Photo Style writes for a few seconds after switching to the
+slot, so the script's restore failed; a retry restored everything (Photo Style 49, slot 10 hidden, same active LUT).
+The script now retries refused writes, shows the slot first, and stops if the edit session is on any other slot.
+Details in `docs/FINDINGS.md`.

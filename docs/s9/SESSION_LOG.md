@@ -34,7 +34,8 @@ Work log for the `s9-control` branch, 2026-11-17 → 2026-11-18. Camera: DC-S9, 
 ## Open
 
 - [ ] LUT-swap test: select Vibrant Pop (slot 40) on the camera, then `lut_swap_test.py OUT --slot=40 --yes`.
-- [ ] My Photo Style write test on slot 10 (plan in FIRMWARE_FEATURES.md); needs a go-ahead.
+- [ ] My Photo Style write test: rerun `control/mps_write_test.py OUT --yes` with the lens cap off, pointed at a lit,
+  colourful scene (run 1 was inconclusive; camera restored).
 - [ ] Restart Claude Desktop so `lumix-mcp` loads; check it lists LUTs.
 - [ ] Join the iPhone to Tailscale to use `/m` away from home.
 - [ ] On the camera: install the waiting lens firmware; save C1 = Subtle Contrast 1 and C3 = Cine Film 1, then back

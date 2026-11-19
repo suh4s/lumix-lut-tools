@@ -103,8 +103,23 @@ What we learned building this, including the mistakes, so nobody has to repeat t
   not 23–28. So code can switch the camera between Real Time LUT and up to ten My Photo Styles.
 - `0x02000223` (select setting) = 49 now, allowed 19–28; `0x02000224` (registration) = 0.
 - With Real Time LUT active the LUT block `0x020001F0–FC` reads sentinel values (65535/65534/65533), so a slot's
-  contents (base style, LUT 1/2, strength) are not readable without selecting or editing that slot. Next test: edit
-  slot 10 (base V-Log + one LUT), show it, select it over USB, watch live view, restore.
+  contents (base style, LUT 1/2, strength) are not readable without selecting or editing that slot.
+
+### Write test, run 1 (`control/mps_write_test.py`, 2026-11-18): writes work, the image effect is still unmeasured
+
+- **A hidden slot can't be selected for editing.** StartEdit (0x9419 0x03010041), then `0x02000223` = 28 (slot 10,
+  hidden) → 0x201D, and the session sat on code 19 (slot 1); the LUT writes that followed were refused (0x201D).
+  After showing the slot (`0x02000221` = `28 | 1 << 16`), selecting it for editing worked and `0x020001FB` (LUT 1
+  registration) and `0x020001F3` (LUT 1 on) were accepted and read back. Show first, then edit; and check
+  `0x02000223` reads the slot before writing anything.
+- **Photo Style writes are refused for a while after a style change.** With a My Photo Style just selected,
+  `0x02000011`, `0x02000221` and `0x02000223` returned 0x201D on immediate writes; the same writes a few seconds later
+  succeeded. Retry 0x201D like 0x2019.
+- With the slot active as Photo Style, its LUT settings read real values inside an edit session (LUT 1 off = 0,
+  registration 65535 = none, strength 65534); with another style active they read sentinels.
+- 0x9419 Reset (0x03010044, `[u16 code]`) answers OK.
+- Whether the registered LUT changes the picture: not measured yet (live view was flat, lens cap on). Rerun on a lit,
+  colourful scene; pass = LUT A, LUT B and LUT off give clearly different frames.
 
 ## Firmware
 

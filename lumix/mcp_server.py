@@ -132,7 +132,7 @@ def write_lut_file(source: str, destination: str, grain: int | None = None, colo
 @server.tool(annotations=WRITE)
 def set_photo_style(style: str) -> dict:
     """Photo Style: standard, vivid, natural, monochrome, scenery, portrait, l_monochrome, cinelike_d2, vlog,
-    custom1-3, real_time_lut (the LUT chosen on the camera)."""
+    my_photo_style_1-10 (slots shown in the camera menu), real_time_lut (the LUT chosen on the camera)."""
     if style not in settings.PHOTO_STYLES:
         raise CameraError(f'Unknown style. Use one of {sorted(settings.PHOTO_STYLES)}')
     with Camera() as cam:

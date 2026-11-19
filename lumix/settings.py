@@ -24,8 +24,10 @@ PROPS = {
 }
 
 PHOTO_STYLES = {'standard': 0, 'vivid': 1, 'natural': 2, 'monochrome': 3, 'scenery': 4, 'portrait': 5,
-                'l_monochrome': 15, 'cinelike_d2': 17, 'vlog': 18, 'custom1': 20, 'custom2': 21, 'custom3': 22,
-                'real_time_lut': 49}
+                'l_monochrome': 15, 'cinelike_d2': 17, 'vlog': 18, 'real_time_lut': 49,
+                # My Photo Style 1-10 (firmware 2.0+, DC-S9 2.1): codes 19-28, names in 0x0200022A. Only slots shown in
+                # the Photo Style menu (0x02000220/0x02000221) are offered by 0x02000011 (control/mps_probe.py).
+                **{f'my_photo_style_{i}': 18 + i for i in range(1, 11)}}
 WB_MODES = {'auto': 0x0002, 'daylight': 0x0004, 'fluorescent': 0x0005, 'tungsten': 0x0006, 'flash': 0x0007,
             'cloudy': 0x8008, 'white_set': 0x8009, 'shade': 0x800F, 'kelvin': 0x8010, 'kelvin2': 0x8011,
             'kelvin3': 0x8012, 'kelvin4': 0x8013, 'auto_cool': 0x8014, 'auto_warm': 0x8015}

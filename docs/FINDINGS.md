@@ -27,7 +27,8 @@ What we learned building this, including the mistakes, so nobody has to repeat t
   work although DeviceInfo doesn't list them. LUT commands are used in LUMIX Lab mode.
 - Photo Style: `0x02000010` is read-only (writes return 0x201D); write it via **`0x02000011`** ("StyleMode").
   PTP codes: 0 Standard, 1 Vivid, 2 Natural, 3 Monochrome, 4 Scenery, 5 Portrait, 15 L.Monochrome, 17 Cinelike D2,
-  18 V-Log, 49 Real Time LUT slot, 19 LUT slot at reduced opacity, 20–22 Custom 1–3.
+  18 V-Log, 49 Real Time LUT. 19–28 = My Photo Style 1–10 on firmware 2.0+ (see My Photo Style below; earlier
+  notes read 19 as a reduced-opacity LUT slot and 20–22 as Custom 1–3).
 - Image format `0x020000A2`: 3 = RAW, 4 = RAW+JPEG.
 - `0x020001FB` (Lut1RegistrationInformation) accepted writes in tether mode but didn't change the applied LUT there.
 - Shooting mode (P/A/S/M), custom mode, the photo/video switch, i.Dynamic and Sleep Mode can't be set over PTP in tether mode.
@@ -91,6 +92,19 @@ What we learned building this, including the mistakes, so nobody has to repeat t
   good default for colour looks; High (L85) for heavy B&W.
 - A `.cube` without a base tag is applied on V-Log. That's right for V-Log LUTs (ARRI 709_Legacy, S5II Legacy packs)
   and wrong for Standard ones; `lumix_lut.py selftest` lists which LUTs sit on that default.
+
+## My Photo Style (firmware 2.0+, read-only probe on a DC-S9 2.1, `control/mps_probe.py`)
+
+- Ten slots, Photo Style codes **19–28**. Names live in `0x0200022A`: records of `[u16 code][23 B ASCII name]`, the first
+  record being code 49 with an empty name; renaming a slot in camera or LUMIX Lab shows up here ("STREETWISE MINE").
+- `0x02000220` (writable twin `0x02000221`) = which slots the Photo Style menu shows, `[u16 code][u16 shown]` × 10;
+  default 19–22 shown, 23–28 hidden. `0x02000222` = the same for the built-in styles (19 entries, code 48 hidden).
+- **A shown slot is selectable over USB**: the allowed list of `0x02000011` (Photo Style write) included 19–22 and
+  not 23–28. So code can switch the camera between Real Time LUT and up to ten My Photo Styles.
+- `0x02000223` (select setting) = 49 now, allowed 19–28; `0x02000224` (registration) = 0.
+- With Real Time LUT active the LUT block `0x020001F0–FC` reads sentinel values (65535/65534/65533), so a slot's
+  contents (base style, LUT 1/2, strength) are not readable without selecting or editing that slot. Next test: edit
+  slot 10 (base V-Log + one LUT), show it, select it over USB, watch live view, restore.
 
 ## Firmware
 

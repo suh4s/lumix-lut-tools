@@ -1,0 +1,276 @@
+# LUMIX S9 settings spec — source of truth (keep in git)
+# --------------------------------------------------------
+# Hudson Henry runs his Nikon Z8/Z9 as "banks": A = standard, B = action,
+# C = landscape, D = astro. The S9 has no banks, so this file maps them to:
+#   base  -> everything common to all modes (set FIRST, then save C1–C3)
+#   C1    -> Bank B  (everyday / action)
+#   C2    -> Bank C  (landscape / ND / tripod)
+#   C3    -> Bank D  (video by default; swap to "night" for astro trips)
+#
+# Field guide:
+#   menu   : where to set it on the camera (VERIFY names on your firmware)
+#   value  : what to set
+#   why    : one line of reasoning, so future-you can disagree with past-you
+#   wifi   : cam.cgi getsetting type the checker can READ (null = check by eye)
+#   expect : value the checker treats as PASS (omit = observe/record only)
+#   verify : true = I'm not certain of the exact S9 menu label; confirm once
+#
+# Workflow: set camera from this file -> Setup ▸ Save/Restore Camera Setting ▸
+# Save (name e.g. S9BASE01) -> copy the file off the card into ./camset/ -> commit.
+
+meta:
+  camera_model: DC-S9
+  firmware_min: "2.1"          # Lens Fn assignments + MP4 Lite 4K60 arrived in 2.1
+  owner: Suhas
+  spec_version: 2
+  updated: 2026-11-18
+
+base:
+  picture_quality:
+    menu: Photo ▸ Image Quality ▸ Picture Quality
+    value: RAW+FINE
+    why: RAW to edit; the JPEG carries the Real Time LUT look for sharing
+    wifi: null
+  histogram:
+    menu: Custom ▸ Monitor/Display (Photo) ▸ Histogram
+    value: "ON"
+    why: Hudson's rule — judge exposure by histogram, not screen brightness
+    wifi: null
+  # --- "Screen = what you'll shoot" (WYSIWYG) block -------------------------
+  constant_preview:
+    menu: Custom ▸ Monitor/Display (Photo) ▸ Constant Preview  (+ [SET] ▸ [Effect])
+    value: "ON (Effect = aperture + shutter speed)"
+    why: Default is OFF, so in M the screen ignores your exposure. ON shows true brightness + depth of field in A/M
+    wifi: null
+  live_view_boost:
+    menu: Custom ▸ Monitor/Display (Photo) ▸ Live View Boost
+    value: "OFF"
+    why: Brightens the screen for composing in the dark, so it lies about exposure
+    wifi: null
+  night_mode:
+    menu: Custom ▸ Monitor/Display (Photo) ▸ Night Mode
+    value: "OFF"
+    why: Red, dimmed screen. Only for astro (the night block can turn it ON)
+    wifi: null
+  monochrome_live_view:
+    menu: Custom ▸ Monitor/Display ▸ Monochrome Live View
+    value: "OFF"
+    why: B&W screen only helps manual focus; it hides colour and WB mistakes
+    wifi: null
+  monitor_settings:
+    menu: Setup ▸ Monitor/Display ▸ Monitor Settings (Brightness/Contrast/Saturation/Red/Blue)
+    value: all 0
+    why: Any offset makes the screen disagree with the file
+    wifi: null
+  monitor_backlight:
+    menu: Setup ▸ Monitor/Display ▸ Monitor Backlight
+    value: AUTO
+    why: Backlight only affects how visible the screen is in sun, not the tones; AUTO is fine
+    wifi: null
+  highlight_warning:
+    menu: Custom ▸ Monitor/Display (Photo) ▸ Blinking Highlights
+    value: "ON"
+    why: Instant clipped-highlight check in review
+    wifi: null
+    verify: true
+  zebra:
+    menu: Custom ▸ Monitor/Display ▸ Zebra Pattern
+    value: ZEBRA1 = 100%
+    why: Live clipping warning before the shot (the S9 has no EVF to squint into)
+    wifi: null
+    verify: true
+  peaking:
+    menu: Custom ▸ Focus/Shutter ▸ Peaking
+    value: ON (LOW sensitivity)
+    why: Essential for the Nokton/M lenses and MF landscape work
+    wifi: peaking
+    expect_not: "off"
+  shutter_af:
+    menu: Custom ▸ Focus/Shutter ▸ Shutter AF
+    value: "OFF"
+    why: Back-button focus — shutter only fires, thumb focuses (Hudson-style)
+    wifi: null
+  af_on_button:
+    menu: Custom ▸ Operation ▸ Fn Button Set ▸ (rear Fn)
+    value: AF-ON
+    why: The thumb button that replaces half-press focus
+    wifi: null
+    verify: true
+  lut_button:
+    menu: Custom ▸ Operation ▸ Fn Button Set ▸ LUT button
+    value: Real Time LUT
+    why: One-press toggle for your grain/film LUTs
+    wifi: null
+  lens_fn_button:
+    menu: Custom ▸ Operation ▸ Lens Fn Button Setting
+    value: Focus Peaking (or Aspect Ratio for street)
+    why: FW 2.1 expanded what the lens button can do; only on lenses that have one
+    wifi: null
+  long_exposure_nr:
+    menu: Photo ▸ Image Quality ▸ Long Exposure NR
+    value: "ON"
+    why: Cleaner 10-stop ND frames; costs a second exposure of dark-frame time
+    wifi: null
+    verify: true
+  synchro_scan:
+    menu: Photo ▸ Exposure ▸ Synchro Scan (Photo)
+    value: OFF by default; turn ON under LED/flickering light
+    why: Electronic-only shutter = banding risk indoors (recitals!)
+    wifi: null
+    verify: true
+  copyright:
+    menu: Setup ▸ Others ▸ Copyright Information
+    value: Artist = Suhas Prakash
+    why: Embedded in every file's EXIF
+    wifi: null
+    verify: true
+  lumix_lab_pairing:
+    menu: Setup ▸ Bluetooth ▸ Pairing (with LUMIX Lab)
+    value: Paired, Auto Time Set ON
+    why: Phone becomes remote shutter for long exposures; clock stays correct
+    wifi: null
+
+C1:   # Bank B — everyday / action / walkaround
+  label: EVERYDAY
+  exposure_mode:
+    menu: Mode ▸ A
+    value: Aperture priority
+    wifi: null
+  iso:
+    menu: Photo ▸ Exposure ▸ ISO (Auto) + ISO Upper Limit
+    value: AUTO, upper limit 6400
+    why: Let ISO float; protect shutter speed instead
+    wifi: iso
+    expect: auto
+  min_shutter:
+    menu: Photo ▸ Exposure ▸ Min. Shutter Speed
+    value: 1/250
+    why: Kids and recitals move; 1/250 freezes most of it
+    wifi: null
+    verify: true
+  exposure_comp:
+    menu: Exposure compensation
+    value: "0"
+    wifi: exposure
+    expect: "0"
+  focus_mode:
+    menu: Focus mode
+    value: AFC
+    wifi: focusmode
+    expect: afc
+  af_mode:
+    menu: AF Mode
+    value: Tracking, Detection = Human (Eye)
+    wifi: afmode
+  metering:
+    menu: Photo ▸ Exposure ▸ Metering Mode
+    value: Multiple
+    wifi: lightmetering
+  drive:
+    menu: Drive ▸ Burst (low-speed)
+    value: Burst L
+    why: A few frames per moment without filling the card
+    wifi: null
+  real_time_lut:
+    menu: Photo ▸ Photo Style ▸ Real Time LUT
+    value: Your grain LUT
+    wifi: null
+  ibis:
+    menu: Photo ▸ Image Stabilizer
+    value: "ON"
+    wifi: null
+
+C2:   # Bank C — landscape / ND / tripod
+  label: LANDSCAPE
+  exposure_mode:
+    menu: Mode ▸ M
+    value: Manual
+    wifi: null
+  iso:
+    menu: Photo ▸ Exposure ▸ ISO
+    value: "100"
+    why: Base ISO for maximum dynamic range
+    wifi: iso
+    expect: "100"
+  aperture:
+    menu: Aperture (rear dial)
+    value: f/8
+    why: Sweet spot for the Sigma I-series and the 18-40
+    wifi: focal
+    expect: f/8
+  shutter:
+    menu: Shutter (front dial)
+    value: set per scene; up to T 60s with the 10-stop
+    why: S9 is electronic-shutter only — about 60 s ceiling, shorter above ISO 1600
+    wifi: shtrspeed
+  focus_mode:
+    menu: Focus mode
+    value: MF (peaking on) — or AFS 1-Area to set, then MF
+    wifi: focusmode
+    expect: mf
+  metering:
+    menu: Photo ▸ Exposure ▸ Metering Mode
+    value: Multiple
+    wifi: lightmetering
+  drive:
+    menu: Drive ▸ Self-timer
+    value: 2 s (or LUMIX Lab remote)
+    why: No touch-induced shake
+    wifi: null
+  ibis:
+    menu: Photo ▸ Image Stabilizer
+    value: OFF on tripod
+    why: IBIS can hunt on a locked-down tripod
+    wifi: null
+  real_time_lut:
+    menu: Photo ▸ Photo Style
+    value: Standard (LUT off) — neutral preview for exposure decisions
+    wifi: null
+  bracketing:
+    menu: Drive ▸ Bracket ▸ Exposure
+    value: 3 frames, 1 EV (ready, not active)
+    why: For high-contrast scenes the histogram says won't fit
+    wifi: null
+    verify: true
+
+C3:   # Bank D — video by default (swap to the "night" block below for astro trips)
+  label: VIDEO
+  exposure_mode:
+    menu: Mode switch ▸ Video, Creative Video ▸ M
+    value: Manual exposure
+    wifi: null
+  rec_quality:
+    menu: Video ▸ Image Format ▸ Rec Quality
+    value: 4K 24p 10-bit (MOV)
+    wifi: null
+  shutter:
+    menu: Shutter
+    value: 1/50 (180° rule at 24p)
+    why: This is why you carry the ND set — keep 1/50 in daylight
+    wifi: shtrspeed
+  iso:
+    menu: ISO
+    value: AUTO, limit 6400
+    wifi: iso
+  focus_mode:
+    menu: Focus mode
+    value: AFC, Tracking, Human detection
+    wifi: focusmode
+    expect: afc
+  zebra:
+    menu: Custom ▸ Monitor/Display ▸ Zebra Pattern
+    value: 100% (or 95% for faces in V-Log)
+    wifi: null
+  real_time_lut:
+    menu: Photo Style ▸ Real Time LUT / V-Log + LUT View Assist
+    value: Your film LUT baked in, or V-Log with view assist
+    wifi: null
+
+night:  # Alternate C3 for astro trips — save over C3 when needed
+  label: NIGHT
+  exposure_mode: { menu: Mode ▸ M, value: Manual, wifi: null }
+  iso: { menu: ISO, value: "1600", why: "≤1600 keeps the full ~60 s exposure ceiling", wifi: iso, expect: "1600" }
+  aperture: { menu: Aperture, value: wide open, wifi: focal }
+  focus_mode: { menu: Focus mode, value: MF at infinity (magnify a star), wifi: focusmode, expect: mf }
+  ibis: { menu: Image Stabilizer, value: "OFF", wifi: null }
+  long_exposure_nr: { menu: Long Exposure NR, value: OFF for star stacks, wifi: null, verify: true }

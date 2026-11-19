@@ -1,0 +1,24 @@
+# S9 picks from the proof sheet; V-Log packs (load with --base=VLOG)
+# path,name   (paths relative to this file: the renamed pack files next to it in _for_SD_card/)
+../_for_SD_card/FESubtleContrast1.cube,Subtle Contrast 1
+../_for_SD_card/AEBeauty.cube,Beauty
+../_for_SD_card/AENatureVibrance.cube,Nature Vibrance
+../_for_SD_card/FEContrastDrama1.cube,Contrast Drama 1
+../_for_SD_card/FECineFilm1.cube,Cine Film 1
+# held, no free slot: ../_for_SD_card/FECineFilm2.cube,Cine Film 2
+../_for_SD_card/AETealTangerine.cube,Teal Tangerine
+../_for_SD_card/FECineBleach.cube,Cine Bleach
+../_for_SD_card/AEWarmGlow1.cube,Warm Glow 1
+../_for_SD_card/AEAutumnVibrance.cube,Autumn Vibrance
+../_for_SD_card/FENostalgicSepia1.cube,Nostalgic Sepia 1
+../_for_SD_card/AECityscape.cube,Cityscape
+../_for_SD_card/AEWinteresk.cube,Winteresk
+../_for_SD_card/FEDreamscape1.cube,Dreamscape 1
+../_for_SD_card/FEPastelDream1.cube,Pastel Dream 1
+../_for_SD_card/AEVogue2.cube,Vogue 2
+../_for_SD_card/FEBrightKey1.cube,Bright Key 1
+../_for_SD_card/FEVintageReel2.cube,Vintage Reel 2
+../_for_SD_card/FEFadedElegance.cube,Faded Elegance
+../_for_SD_card/FERetroSoftness.cube,Retro Softness
+../_for_SD_card/AESurburbia2.cube,Surburbia 2
+../_for_SD_card/AEVibrantPop.cube,Vibrant Pop

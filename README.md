@@ -6,6 +6,12 @@ SD card, plus a pipeline for turning photo-editor presets into camera LUTs that 
 Tested on a DC-S9 with firmware 2.1 on macOS (Apple Silicon). Other LUMIX bodies that support LUMIX Lab's wired
 connection probably speak the same protocol, but are untested.
 
+### This fork: S9 control
+
+Branch `s9-control` extends the tools from LUT management to driving the S9 from a Mac, a phone and Claude:
+batch LUT loading with verification, a phone remote (`/m`), a read-only probe of firmware 2.0's My Photo Style
+slots, my S9 setup kept as code, and a roadmap. Start at [docs/s9/](docs/s9/README.md).
+
 ## What works
 
 | Task | Tool |
@@ -128,7 +134,8 @@ The same logic is available from Python as `lumix.batch` and is tested offline i
 - [docs/REPRODUCE.md](docs/REPRODUCE.md): verify the protocol against a newer LUMIX Lab yourself
 - [docs/FIRMWARE.md](docs/FIRMWARE.md): official firmware link and checksums
 - [docs/TESTED.md](docs/TESTED.md): tested cameras (add yours)
-- [docs/scans/](docs/scans/): raw property dumps, firmware 1.5 and 2.1
+- [docs/s9/](docs/s9/README.md): S9 control roadmap, firmware 2.x features, phone app, techniques, session log
+- [docs/scans/](docs/scans/): raw property dumps, firmware 1.5 and 2.1, My Photo Style probe
 - [examples/](examples/): demo LUTs, start with `identity_std.cube`
 
 Offline tests: `python3 tests/test_parse.py`, `python3 tests/test_batch.py`.

@@ -116,14 +116,18 @@ def delete(cam, name):
 
 def cube_with_tags(text, style='STD', grain=None, color_noise=None, title=None):
     """Rewrite a .cube with a camera header: TITLE, #LUMIXPHOTOSTYLE, optional #GRAINEFFECT/#COLORNOISE, LUT_3D_SIZE.
-    Grain L1-33 Low, L34-66 Standard, L67-100 High. Verified on a DC-S9 2.1."""
+    Grain L1-33 Low, L34-66 Standard, L67-100 High. Verified on a DC-S9 2.1.
+    style=None (or 'VLOG'/'none') leaves out #LUMIXPHOTOSTYLE: the camera then applies the LUT on V-Log (base 65535),
+    which is right for V-Log LUTs such as most creator packs and Resolve exports."""
+    if style is not None and style.upper() in ('VLOG', 'V-LOG', 'NONE'):
+        style = None
     lines = text.split('\n')
     data = [l.strip() for l in lines if l.strip() and (l.strip()[0].isdigit() or l.strip()[0] in '-.')]
     size = round(len(data) ** (1 / 3))
     if size ** 3 != len(data) or size > 33:
         raise CameraError(f'Not a 3D LUT of at most 33 points ({len(data)} data lines).')
     title = title or next((l.split('"')[1] for l in lines if l.startswith('TITLE') and '"' in l), 'LUT')
-    hdr = [f'TITLE "{title}"', f'#LUMIXPHOTOSTYLE {style}']
+    hdr = [f'TITLE "{title}"'] + ([f'#LUMIXPHOTOSTYLE {style}'] if style else [])
     if grain is not None:
         hdr.append(f'#GRAINEFFECT L{int(grain)}')
     if color_noise is not None:

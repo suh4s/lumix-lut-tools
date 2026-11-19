@@ -12,7 +12,8 @@ connection probably speak the same protocol, but are untested.
 |---|---|
 | Read-only check of camera and library | `control/lumix_lut.py selftest` |
 | List the LUT Library (names, base Photo Style, type) | `control/lumix_lut.py list` |
-| Upload a `.cube` into a slot (new or replace) | `control/lumix_lut.py push FILE.cube SLOT "Name"` |
+| Upload a `.cube` into a slot (occupied slots need `--replace`) | `control/lumix_lut.py push FILE.cube SLOT "Name" [--replace]` |
+| Load a whole pack from a manifest (plan, back up, upload, verify) | `control/lut_batch.py plan\|load MANIFEST` |
 | Rename / reorder | `control/lumix_lut.py rename SLOT "Name"`, `control/lut_reorder.py order.txt --start=2` |
 | Read device info in any USB mode | `control/devinfo.py` |
 | Tethered shooting, Photo Style / format / WB / EV over USB | `control/lumixctl.py`, `control/tether_pairs.py` |
@@ -76,6 +77,32 @@ The level line assumes LevelInfo (0x17000005) carries roll in 0.1° (not yet ver
 
 On macOS the system camera service `ptpcamerad` grabs the camera; the tools kill it before connecting.
 
+## Batch load a LUT pack
+
+`control/lut_batch.py` loads many LUTs in one pass: it reads a manifest, plans free positions, prepares every file
+before writing anything, optionally backs up the library, uploads, and checks each entry by reading the library back.
+
+```sh
+# manifest.csv: path,name[,position]   (paths relative to the manifest; # starts a comment)
+#   FE01_Subtle_Contrast_1.cube,Subtle Contrast 1
+#   AE07_Cine_Film_1.cube,Cine Film 1,12
+python3 control/lut_batch.py list
+python3 control/lut_batch.py plan manifest.csv --base=VLOG
+python3 control/lut_batch.py load manifest.csv --base=VLOG --backup=~/lut-backup --yes
+```
+
+`--base` decides the Photo Style each LUT sits on:
+
+| `--base` | Header written | Use for |
+|---|---|---|
+| `VLOG` (default) | no `#LUMIXPHOTOSTYLE` tag; the camera applies the LUT on V-Log | packs built for V-Log input |
+| `STD`, `NAT`, ... | `#LUMIXPHOTOSTYLE <style>` | creative LUTs built for a Photo Style |
+| `keep` | leaves the file's own tag (or its absence) | files already prepared for the camera |
+
+Positions 0 and 1 are fixed; new LUTs go into free positions 2–40 in order. An occupied position is refused unless
+`--replace`; a name already in the library is refused. Nothing is written without `--yes`.
+The same logic is available from Python as `lumix.batch` and is tested offline in `tests/test_batch.py`.
+
 ## Docs
 
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): PTP vendor commands, LUT Library protocol, property codes, `.cube` tags
@@ -91,7 +118,7 @@ On macOS the system camera service `ptpcamerad` grabs the camera; the tools kill
 - [docs/scans/](docs/scans/): raw property dumps, firmware 1.5 and 2.1
 - [examples/](examples/): demo LUTs, start with `identity_std.cube`
 
-Offline test: `python3 tests/test_parse.py`.
+Offline tests: `python3 tests/test_parse.py`, `python3 tests/test_batch.py`.
 
 ## Safety
 

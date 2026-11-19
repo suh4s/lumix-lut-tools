@@ -145,6 +145,10 @@ def main():
             blob = open(path, 'rb').read()
             if len(blob) > 9437184:
                 sys.exit('file larger than 9 MB')
+            _, d = lut_info(p)
+            held = next((e['name'] for e in parse_lutinfo(d) if e['pos'] == slot), None)
+            if held and '--replace' not in args:
+                sys.exit(f'slot {slot} holds "{held}"; add --replace to overwrite it')
             rc, _, _ = p.tx(LUT_START, [slot], name256(name))
             print(f'LutStartFileData slot {slot} "{name}": rc=0x{rc:04x}')
             if rc != 0x2001:

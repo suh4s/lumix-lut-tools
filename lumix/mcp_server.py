@@ -59,6 +59,8 @@ def upload_lut(path: str, name: str, position: int | None = None, grain: int | N
                color_noise: int | None = None, base_style: str = 'STD', confirm: bool = False) -> dict:
     """Upload a .cube (max 33 points) into the LUT Library. position=None uses the first free slot.
     grain: 1-33 low, 34-66 standard, 67-100 high (omit for none); color_noise: 0 off, 1-100 on.
+    base_style: 'STD'/'NAT'/... for LUTs made on that style; 'VLOG' for V-Log LUTs (creator packs, Resolve exports):
+    no style tag is written and the camera applies the LUT on V-Log.
     Replacing an occupied position needs confirm=true."""
     text = open(os.path.expanduser(path)).read()
     blob = luts.cube_with_tags(text, style=base_style, grain=grain, color_noise=color_noise, title=name).encode('ascii')

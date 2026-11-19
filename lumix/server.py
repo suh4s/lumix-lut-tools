@@ -1,6 +1,9 @@
 """lumix-server: local HTTP service that owns the camera and serves live view + settings (for the Swift app).
 
-  python -m lumix.server [--port 8765] [--size 1280x960]
+  python -m lumix.server [--port 8765] [--size 1280x960] [--host 127.0.0.1] [--token SECRET]
+
+GET  /m             phone UI (live view, touch AF, shutter, settings, recipes, pre-shot checklist); add it to the
+                    home screen. Reach it from a phone with --host 0.0.0.0 (or a Tailscale address).
 
 GET  /stream        MJPEG (multipart/x-mixed-replace), pushes every new frame immediately, never buffers
 GET  /stream?raw=1  same bytes as application/octet-stream (for native clients that parse the parts themselves;
@@ -14,11 +17,15 @@ POST /touch        {"x": 0..1000, "y": 0..1000, "af": true}  move the AF area (t
 POST /mfassist     {"action": start|move|end, "x": 0..1000, "y": 0..1000, "mode": 1}  magnified MF assist
 POST /focus        {"step": near_fast|near_slow|far_slow|far_fast|stop, "ms": 120}  MF drive pulse (focus mode MF)
 Commands wait for the camera (up to 8 s) and answer {"ok": true, "message"} or {"ok": false, "error"} (4xx/5xx).
-Binds to 127.0.0.1 only. Exit code 2 if the port is taken. SIGTERM stops live view cleanly before exiting.
+Binds to 127.0.0.1 by default. With another --host every request needs the token (header X-Lumix-Token, ?t=, or
+the cookie /m sets); one is generated and printed if none is given. Exit code 2 if the port is taken. SIGTERM stops live view cleanly before exiting.
 """
 import argparse
 import errno
+import hmac
 import json
+import os
+import secrets
 import queue
 import signal
 import sys
@@ -257,7 +264,12 @@ class CameraService:
         self.stopped.wait(timeout)
 
 
-def make_handler(svc):
+MOBILE_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mobile.html')
+MANIFEST = {'name': 'LUMIX Remote', 'short_name': 'LUMIX', 'start_url': '/m', 'display': 'standalone',
+            'background_color': '#000000', 'theme_color': '#000000', 'icons': []}
+
+
+def make_handler(svc, token=None):
     class H(BaseHTTPRequestHandler):
         protocol_version = 'HTTP/1.1'
 
@@ -294,15 +306,44 @@ def make_handler(svc):
             except OSError:  # client went away
                 pass
 
+        def authorized(self, query):
+            """No token configured (loopback only) -> open. Otherwise header, ?t= or cookie must match."""
+            if not token:
+                return True
+            got = self.headers.get('X-Lumix-Token') or dict(
+                kv.split('=', 1) for kv in query.split('&') if '=' in kv).get('t')
+            if not got:
+                for part in (self.headers.get('Cookie') or '').split(';'):
+                    k, _, v = part.strip().partition('=')
+                    if k == 'lumix_t':
+                        got = v
+            return bool(got) and hmac.compare_digest(got, token)
+
         def do_GET(self):
+            path, _, query = self.path.partition('?')
+            if not self.authorized(query):
+                return self.send(401, {'ok': False, 'error': 'token required (open /m?t=TOKEN once on this device)'})
             try:
-                if self.path == '/state':
+                if path in ('/m', '/m/'):
+                    body = open(MOBILE_HTML, 'rb').read()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Cache-Control', 'no-store')
+                    if token:
+                        self.send_header('Set-Cookie', f'lumix_t={token}; Path=/; Max-Age=31536000; SameSite=Strict')
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                if path == '/manifest.webmanifest':
+                    return self.send(200, MANIFEST, 'application/manifest+json')
+                if path == '/state':
                     return self.send(200, svc.state())
-                if self.path == '/frame':
+                if path == '/frame':
                     jpg, _ = svc.wait_frame(-1, 0)
                     return self.send(200, jpg, 'image/jpeg') if jpg else self.send(204, b'')
-                if self.path in ('/stream', '/stream?raw=1'):
-                    return self.stream(self.path.endswith('raw=1'))
+                if path == '/stream':
+                    return self.stream('raw=1' in query.split('&'))
                 self.send(404, {'ok': False, 'error': f'unknown path {self.path}'})
             except (BrokenPipeError, ConnectionResetError):
                 pass
@@ -310,6 +351,9 @@ def make_handler(svc):
                 self.send(500, {'ok': False, 'error': humanize(e)})
 
         def do_POST(self):
+            if not self.authorized(self.path.partition('?')[2]):
+                return self.send(401, {'ok': False, 'error': 'token required'})
+            self.path = self.path.partition('?')[0]
             try:
                 n = int(self.headers.get('Content-Length') or 0)
                 try:
@@ -373,22 +417,29 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--port', type=int, default=8765)
     ap.add_argument('--size', default='1280x960', choices=SIZES)
+    ap.add_argument('--host', default='127.0.0.1', help='0.0.0.0 or a Tailscale address to reach /m from a phone')
+    ap.add_argument('--token', default=os.environ.get('LUMIX_TOKEN'), help='required when --host is not loopback')
     a = ap.parse_args()
+    token = a.token
+    if a.host not in ('127.0.0.1', 'localhost', '::1') and not token:
+        token = secrets.token_urlsafe(12)
     try:
-        srv = ThreadingHTTPServer(('127.0.0.1', a.port), BaseHTTPRequestHandler)
+        srv = ThreadingHTTPServer((a.host, a.port), BaseHTTPRequestHandler)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(f'lumix-server: port {a.port} is already in use (another lumix-server running?)', file=sys.stderr, flush=True)
             sys.exit(2)
         raise
     svc = CameraService(tuple(int(x) for x in a.size.split('x')))
-    srv.RequestHandlerClass = make_handler(svc)
+    srv.RequestHandlerClass = make_handler(svc, token)
     srv.daemon_threads = True
 
     def on_term(*_):  # the app stops us with SIGTERM: stop live view on the camera before exiting
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, on_term)
-    print(f'lumix-server on http://127.0.0.1:{a.port}', flush=True)
+    print(f'lumix-server on http://{a.host}:{a.port}', flush=True)
+    if token:
+        print(f'phone UI: http://<this-mac>:{a.port}/m?t={token}', flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

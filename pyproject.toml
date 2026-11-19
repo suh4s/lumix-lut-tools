@@ -17,3 +17,6 @@ lumix-monitor = "lumix.monitor:main"
 
 [tool.setuptools]
 packages = ["lumix"]
+
+[tool.setuptools.package-data]
+lumix = ["mobile.html"]

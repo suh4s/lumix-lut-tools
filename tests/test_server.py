@@ -69,5 +69,32 @@ assert post('/set', {'key': 'iso', 'label': '7'})[0] == 400
 assert post('/touch', {'x': 2000, 'y': 1})[0] == 400
 assert post('/focus', {'step': 'up'})[0] == 400
 assert post('/af', {}) == (200, {'ok': True, 'message': 'focused'})
+with urllib.request.urlopen(base + '/m', timeout=5) as r:
+    page = r.read()
+    assert r.headers['Content-Type'].startswith('text/html') and b'LUMIX Remote' in page and b'/stream' in page
+assert json.load(urllib.request.urlopen(base + '/manifest.webmanifest', timeout=5))['start_url'] == '/m'
+
+# with a token (phone access): everything needs it; header, ?t= and the cookie /m sets all work
+tsrv = ThreadingHTTPServer(('127.0.0.1', 0), server.make_handler(svc, 'sekret'))
+threading.Thread(target=tsrv.serve_forever, daemon=True).start()
+tbase = f'http://127.0.0.1:{tsrv.server_address[1]}'
+for path in ('/state', '/m', '/frame'):
+    try:
+        urllib.request.urlopen(tbase + path, timeout=5); raise SystemExit(f'{path} open without token')
+    except urllib.error.HTTPError as e:
+        assert e.code == 401, (path, e.code)
+try:
+    urllib.request.urlopen(urllib.request.Request(tbase + '/af', b'{}', {'X-Lumix-Token': 'wrong'}), timeout=5)
+    raise SystemExit('POST accepted a wrong token')
+except urllib.error.HTTPError as e:
+    assert e.code == 401
+with urllib.request.urlopen(tbase + '/m?t=sekret', timeout=5) as r:
+    cookie = r.headers['Set-Cookie']
+    assert r.status == 200 and cookie.startswith('lumix_t=sekret')
+assert json.load(urllib.request.urlopen(urllib.request.Request(tbase + '/state', headers={'X-Lumix-Token': 'sekret'}), timeout=5))['phase'] == 'live'
+assert json.load(urllib.request.urlopen(urllib.request.Request(tbase + '/state', headers={'Cookie': 'lumix_t=sekret'}), timeout=5))['phase'] == 'live'
+r = urllib.request.urlopen(urllib.request.Request(tbase + '/af?t=sekret', b'{}', {'Content-Type': 'application/json'}), timeout=5)
+assert json.load(r)['ok'] is True
+tsrv.shutdown()
 svc.shutdown()
 print('ok: server tests passed')

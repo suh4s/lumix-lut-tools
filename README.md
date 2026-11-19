@@ -64,6 +64,19 @@ The app starts `python -m lumix.server` (127.0.0.1:8765; `/stream`, `/stream?raw
 Build: `apps/LumixOS/build_app.sh`. A Tk version: `python -m lumix.monitor`.
 The level line assumes LevelInfo (0x17000005) carries roll in 0.1° (not yet verified by tilting).
 
+## Phone remote (/m)
+
+`lumix-server` also serves a phone UI at `/m`: live view, tap-to-focus, shutter, manual-focus nudges, every setting
+the camera offers, one-tap **recipes** (named sets of settings kept on the phone) and a pre-shot checklist. The camera
+stays on the Mac's USB port; the phone talks to the Mac over Wi-Fi or Tailscale.
+
+```sh
+python -m lumix.server --host 0.0.0.0 --port 8767        # prints http://<this-mac>:8767/m?t=<token>
+```
+
+Open the printed URL once on the phone (Safari → Share → Add to Home Screen). Any host other than loopback requires
+the token (generated if `--token`/`LUMIX_TOKEN` is not given); the page stores it and the server sets a cookie.
+
 ## Quick start (LUT upload)
 
 1. Camera: **Setup → USB Mode → PC (Tether)** (or LUMIX Lab), connect by USB.

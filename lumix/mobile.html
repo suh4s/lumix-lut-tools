@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>LUMIX Remote</title>
+<style>
+  /* Phone remote for lumix-server: camera-dark, thumb-reachable controls at the bottom. */
+  :root { --fg:#f2f2f2; --dim:#9a9a9a; --line:#2a2a2a; --card:#141414; --accent:#e8b04a; --bad:#e5534b; --ok:#57ab5a; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; background:#000; color:var(--fg); font:15px/1.35 -apple-system,system-ui,sans-serif; }
+  header { display:flex; gap:10px; align-items:center; padding:calc(env(safe-area-inset-top) + 6px) 12px 6px; font-size:13px; color:var(--dim); }
+  header b { color:var(--fg); font-weight:600; }
+  #dot { width:9px; height:9px; border-radius:50%; background:var(--bad); flex:none; }
+  #dot.live { background:var(--ok); }
+  #lvwrap { position:relative; width:100%; aspect-ratio:4/3; background:#0b0b0b; touch-action:manipulation; }
+  #lv { width:100%; height:100%; object-fit:contain; display:block; }
+  #af { position:absolute; width:56px; height:56px; margin:-28px 0 0 -28px; border:2px solid var(--accent); border-radius:6px; display:none; pointer-events:none; }
+  #hist { position:absolute; right:8px; bottom:8px; width:110px; height:44px; background:rgba(0,0,0,.45); border-radius:4px; }
+  #msg { position:absolute; left:8px; bottom:8px; right:126px; font-size:12px; color:var(--fg); text-shadow:0 1px 2px #000; }
+  .row { display:flex; gap:8px; padding:10px 12px; align-items:center; }
+  button { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; }
+  button:active { background:#262626; }
+  #shoot { width:76px; height:76px; border-radius:50%; background:#fff; border:5px solid #555; margin:0 auto; padding:0; }
+  #shoot:active { background:#ccc; }
+  .mf { flex:1; padding:10px 0; }
+  nav { display:flex; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  nav button { flex:1; border:0; border-radius:0; background:none; color:var(--dim); padding:12px 0; }
+  nav button.on { color:var(--accent); box-shadow:inset 0 -2px 0 var(--accent); }
+  section { display:none; padding:8px 12px calc(env(safe-area-inset-bottom) + 24px); }
+  section.on { display:block; }
+  label.set { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); }
+  label.set span { color:var(--dim); text-transform:capitalize; }
+  select { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:7px; font:inherit; max-width:60%; }
+  .recipe { display:flex; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); }
+  .recipe div { flex:1; }
+  .recipe small { color:var(--dim); display:block; }
+  .check { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .check input { width:22px; height:22px; flex:none; accent-color:var(--accent); }
+  .check small { color:var(--dim); display:block; }
+  .note { color:var(--dim); font-size:12px; margin:10px 0; }
+</style>
+</head>
+<body>
+<header><div id="dot"></div><b id="model">LUMIX</b><span id="hud"></span></header>
+<div id="lvwrap"><img id="lv" alt="Live view"><div id="af"></div><canvas id="hist" width="220" height="88"></canvas><div id="msg"></div></div>
+<div class="row">
+  <button class="mf" data-mf="near_fast">◀◀</button><button class="mf" data-mf="near_slow">◀</button>
+  <button id="shoot" aria-label="Shutter"></button>
+  <button class="mf" data-mf="far_slow">▶</button><button class="mf" data-mf="far_fast">▶▶</button>
+</div>
+<div class="row"><button id="afbtn" style="flex:1">AF</button><button id="undo" style="flex:1">Undo changes</button></div>
+<nav><button data-tab="settings" class="on">Settings</button><button data-tab="recipes">Recipes</button><button data-tab="checklist">Checklist</button></nav>
+<section id="settings" class="on"></section>
+<section id="recipes">
+  <div id="rlist"></div>
+  <div class="row" style="padding:12px 0"><button id="rsave" style="flex:1">Save current settings as a recipe</button></div>
+  <p class="note">A recipe sets several camera values in one tap (the camera must offer each value in its current mode). Recipes stay on this phone.</p>
+</section>
+<section id="checklist">
+  <div id="clist"></div>
+  <div class="row" style="padding:12px 0"><button id="creset" style="flex:1">Reset checklist</button></div>
+  <p class="note">Mike Browne's 7 Building Blocks as a pre-shot pass, with the S9-specific checks from your settings.</p>
+</section>
+<script>
+// Token: ?t= once, then kept on this phone (the server also sets a cookie).
+const q = new URLSearchParams(location.search);
+if (q.get('t')) { try { localStorage.setItem('lumix.t', q.get('t')); } catch (e) {} history.replaceState(null, '', '/m'); }
+let T = ''; try { T = localStorage.getItem('lumix.t') || ''; } catch (e) {}
+const H = T ? { 'X-Lumix-Token': T } : {};
+const $ = s => document.querySelector(s);
+const msg = t => { $('#msg').textContent = t; clearTimeout(msg.h); msg.h = setTimeout(() => $('#msg').textContent = '', 4000); };
+async function post(path, body = {}) {
+  try {
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...H }, body: JSON.stringify(body) });
+    const j = await r.json(); msg(j.ok ? (j.message || 'ok') : (j.error || 'failed')); return j.ok;
+  } catch (e) { msg('No connection to the Mac'); return false; }
+}
+$('#lv').src = '/stream' + (T ? '?t=' + encodeURIComponent(T) : '');
+$('#lv').onerror = () => setTimeout(() => { $('#lv').src = $('#lv').src.split('#')[0] + '#' + Date.now(); }, 2000);
+
+// Tap the picture = move the AF area there and focus once (MF mode: magnified assist instead, on the camera side).
+$('#lvwrap').addEventListener('click', e => {
+  const img = $('#lv'), r = img.getBoundingClientRect();
+  const iw = img.naturalWidth || 4, ih = img.naturalHeight || 3, s = Math.min(r.width / iw, r.height / ih);
+  const w = iw * s, h = ih * s, x0 = r.left + (r.width - w) / 2, y0 = r.top + (r.height - h) / 2;
+  const x = (e.clientX - x0) / w, y = (e.clientY - y0) / h;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  const af = $('#af'); af.style.left = (e.clientX - r.left) + 'px'; af.style.top = (e.clientY - r.top) + 'px'; af.style.display = 'block';
+  setTimeout(() => af.style.display = 'none', 1200);
+  post('/touch', { x: Math.round(x * 1000), y: Math.round(y * 1000), af: true });
+});
+$('#shoot').onclick = () => { navigator.vibrate && navigator.vibrate(30); post('/shutter'); };
+$('#afbtn').onclick = () => post('/af');
+$('#undo').onclick = () => post('/undo');
+document.querySelectorAll('[data-mf]').forEach(b => b.onclick = () => post('/focus', { step: b.dataset.mf, ms: b.dataset.mf.endsWith('fast') ? 250 : 120 }));
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button, section').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); $('#' + b.dataset.tab).classList.add('on');
+});
+
+// State poll: HUD, histogram, settings controls.
+let state = null, building = false;
+function drawHist(h) {
+  const c = $('#hist'), g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+  if (!h || !h.length) return;
+  const m = Math.max(...h, 1), bw = c.width / h.length; g.fillStyle = 'rgba(255,255,255,.8)';
+  h.forEach((v, i) => { const y = v / m * (c.height - 6); g.fillRect(i * bw, c.height - 3 - y, Math.max(bw - .5, 1), y); });
+}
+function renderSettings() {
+  const box = $('#settings'); if (building || !state || !state.options) return;
+  const keys = Object.keys(state.options);
+  if (box.dataset.keys !== keys.join()) {
+    box.innerHTML = ''; box.dataset.keys = keys.join();
+    for (const k of keys) {
+      const l = document.createElement('label'); l.className = 'set';
+      l.innerHTML = `<span>${k.replace(/_/g, ' ')}</span>`;
+      const s = document.createElement('select'); s.dataset.key = k;
+      for (const o of state.options[k]) s.add(new Option(o, o));
+      s.onchange = async () => { building = true; await post('/set', { key: k, label: s.value }); building = false; };
+      l.appendChild(s); box.appendChild(l);
+    }
+  }
+  box.querySelectorAll('select').forEach(s => { const v = (state.current || {})[s.dataset.key]; if (v != null && document.activeElement !== s) s.value = v; });
+}
+async function poll() {
+  try {
+    const r = await fetch('/state', { headers: H, cache: 'no-store' }); state = await r.json();
+    $('#dot').className = state.phase === 'live' ? 'live' : '';
+    if (state.camera) $('#model').textContent = state.camera.model;
+    const h = state.hud || {};
+    $('#hud').textContent = [h.battery != null && h.battery + '%', h.shots != null && h.shots + ' left', h.shutter, state.phase !== 'live' && state.status].filter(Boolean).join(' · ');
+    drawHist(h.histogram); renderSettings(); renderRecipes();
+  } catch (e) { $('#dot').className = ''; $('#hud').textContent = 'Mac not reachable'; }
+  setTimeout(poll, 1000);
+}
+
+// Recipes: named sets of {setting: label}, applied one after another.
+const RKEYS = ['photo_style', 'white_balance', 'kelvin', 'wb_adjust_gm', 'iso', 'exposure_comp', 'aperture', 'shutter',
+               'image_format', 'focus_mode', 'lut1_on', 'lut1_opacity', 'color_noise'];
+const load = () => { try { return JSON.parse(localStorage.getItem('lumix.recipes') || '[]'); } catch (e) { return []; } };
+const store = r => { try { localStorage.setItem('lumix.recipes', JSON.stringify(r)); } catch (e) {} };
+function renderRecipes() {
+  const box = $('#rlist'), list = load(), sig = JSON.stringify(list);
+  if (box.dataset.sig === sig) return; box.dataset.sig = sig; box.innerHTML = '';
+  if (!list.length) box.innerHTML = '<p class="note">No recipes yet. Set the camera up the way you like, then save it here.</p>';
+  list.forEach((r, i) => {
+    const d = document.createElement('div'); d.className = 'recipe';
+    d.innerHTML = `<div>${r.name}<small>${Object.entries(r.values).map(([k, v]) => k.replace(/_/g, ' ') + ' ' + v).join(' · ')}</small></div>`;
+    const a = document.createElement('button'); a.textContent = 'Apply';
+    a.onclick = async () => { let ok = 0, n = 0; for (const [k, v] of Object.entries(r.values)) { n++; if (await post('/set', { key: k, label: v })) ok++; } msg(`${r.name}: ${ok}/${n} applied`); };
+    const x = document.createElement('button'); x.textContent = '✕';
+    x.onclick = () => { if (confirm('Delete ' + r.name + '?')) { const l = load(); l.splice(i, 1); store(l); renderRecipes(); } };
+    d.append(a, x); box.appendChild(d);
+  });
+}
+$('#rsave').onclick = () => {
+  if (!state || !state.current) return msg('No camera state yet');
+  const name = prompt('Recipe name'); if (!name) return;
+  const values = {}; for (const k of RKEYS) if (state.current[k] != null) values[k] = state.current[k];
+  const l = load(); l.push({ name, values }); store(l); renderRecipes();
+};
+
+// Pre-shot checklist (Mike Browne, 7 Building Blocks) + S9 checks.
+const CHECKS = [
+  ['You', 'What is this picture about, and what do I want the viewer to feel?'],
+  ['Light', 'Is the quality of light right for this subject? Move, wait or reframe if not.'],
+  ['Composition', 'What is in the frame that does not help? Check the edges.'],
+  ['Focal length', 'Would a wider or longer lens from a different spot say it better?'],
+  ['Sharpness', 'Where must it be sharp, and how much depth of field do I want?'],
+  ['Exposure', 'How light or dark do I want it? Protect highlights: check the histogram.'],
+  ['White balance', 'Warm, cool or neutral on purpose? Then re-check the six blocks above.'],
+  ['S9: base ISO', 'Real Time LUT and V-Log sit on base ISO 640: in bright light use ND or a faster shutter.'],
+  ['S9: LUT', 'Is the right LUT selected on the camera? (the phone cannot choose it)'],
+];
+function renderChecks() {
+  let st = {}; try { st = JSON.parse(localStorage.getItem('lumix.checks') || '{}'); } catch (e) {}
+  $('#clist').innerHTML = '';
+  CHECKS.forEach(([t, d], i) => {
+    const l = document.createElement('label'); l.className = 'check';
+    l.innerHTML = `<input type="checkbox" ${st[i] ? 'checked' : ''}><div>${t}<small>${d}</small></div>`;
+    l.querySelector('input').onchange = e => { st[i] = e.target.checked; try { localStorage.setItem('lumix.checks', JSON.stringify(st)); } catch (x) {} };
+    $('#clist').appendChild(l);
+  });
+}
+$('#creset').onclick = () => { try { localStorage.removeItem('lumix.checks'); } catch (e) {} renderChecks(); };
+renderChecks(); poll();
+</script>
+</body>
+</html>

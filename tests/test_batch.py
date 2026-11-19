@@ -101,4 +101,13 @@ try:
     batch.plan(luts.library(cam3), items[:1]); raise SystemExit('expected full')
 except CameraError as e:
     assert 'full' in str(e)
+# the CLI's library table copes with style codes the STYLES table doesn't know (seen on a DC-S9, fw 2.1)
+import contextlib, io
+sys.path.insert(0, os.path.join(here, '..', 'control'))
+import lut_batch
+cam4 = FakeCam([('Vlog_709', 40, 1), ('ARRI 709', 65535, 2), ('Odd', 4242, 3)])
+out = io.StringIO()
+with contextlib.redirect_stdout(out):
+    lut_batch.show_library(luts.library(cam4))
+assert 'style 4242' in out.getvalue() and 'V-Log default' in out.getvalue(), out.getvalue()
 print('ok: batch tests passed')

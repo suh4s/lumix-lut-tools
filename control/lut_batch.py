@@ -27,7 +27,8 @@ def opt(args, key, default=None):
 
 def show_library(lib):
     for e in lib:
-        base = e['base_style'] or 'V-Log default'
+        b = e['base_style']  # style name, None (V-Log default) or a raw code the table doesn't know
+        base = 'V-Log default' if b is None else b if isinstance(b, str) else f'style {b}'
         print(f"  {e['position']:2d}  {str(e['type']):8s}  {base:13s}  {e['name']}")
     print(f'  {len(lib)} entries, {sum(1 for p in range(2, 41) if p not in {e["position"] for e in lib})} free positions (2-40)')
 

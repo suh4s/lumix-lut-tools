@@ -112,7 +112,10 @@ def load(cam, items, base='VLOG', replace=False, log=print):
     results = []
     for s, blob in zip(steps, blobs):
         entry = luts.upload(cam, blob, s['position'], s['name'])
-        ok = bool(entry) and entry['name'] == s['name'] and (want == '?' or entry['base_style'] == want)
+        got = entry['base_style'] if entry else None
+        # a tag-less file is documented to report 65535 (None); LUTs added in camera can report V-Log (40) instead
+        base_ok = want == '?' or got == want or (want is None and got == 'VLOG')
+        ok = bool(entry) and entry['name'] == s['name'] and base_ok
         results.append({'position': s['position'], 'name': s['name'], 'bytes': len(blob), 'ok': ok,
                         'base_style': entry['base_style'] if entry else None, 'replaced': s['replaces']})
         log(f"{'ok ' if ok else 'BAD'} {s['position']:2d}  {s['name']}  ({len(blob)} B, base "
